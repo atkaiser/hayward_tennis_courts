@@ -68,7 +68,7 @@ def parse_reservation_data(json_data: bytes) -> dict:
         ValueError: if the JSON data is invalid or missing required keys.
     """
     try:
-        data = json.loads(json_data.decode("utf-8"))
+        data: Any = json.loads(json_data.decode("utf-8"))
     except Exception as e:
         raise ValueError("Failed to parse JSON data") from e
 
@@ -133,8 +133,8 @@ def consolidate_booked_slots(parsed_data: dict) -> dict:
                     continue
                 booked_times.sort()
                 events = []
-                fmt = "%Y-%m-%d %H:%M"
-                tz = ZoneInfo(TIMEZONE)
+                fmt: str = "%Y-%m-%d %H:%M"
+                tz: ZoneInfo = ZoneInfo(TIMEZONE)
                 current_start = None
                 current_end = None
                 for t in booked_times:
@@ -194,8 +194,8 @@ def Workspace_calendar_events(service: Any, calendar_id: str, time_min_iso: str,
     Returns:
         List[dict]: A list of event dictionaries containing keys 'id', 'summary', 'start', and 'end'.
     """
-    events = []
-    page_token = None
+    events: List[dict] = []
+    page_token: Optional[str] = None
     while True:
         response = service.events().list(
             calendarId=calendar_id,
@@ -232,26 +232,26 @@ def diff_events(desired_slots: dict, existing_events: List[dict], location_name:
                           representing new events that need to be created.
         events_to_delete: a list of event IDs from existing_events that are no longer desired.
     """
-    desired_tuples = set()
-    desired_events = []
+    desired_tuples: set = set()
+    desired_events: List[dict] = []
     for court, events in desired_slots.items():
         for (start, end) in events:
             event_tuple = (court, start, end)
             desired_tuples.add(event_tuple)
             desired_events.append({"summary": court, "start": start, "end": end})
             
-    existing_tuples = set()
+    existing_tuples: set = set()
     for event in existing_events:
         event_tuple = (event["summary"], event["start"], event["end"])
         existing_tuples.add(event_tuple)
     
-    events_to_create = []
+    events_to_create: List[dict] = []
     for event in desired_events:
         event_tuple = (event["summary"], event["start"], event["end"])
         if event_tuple not in existing_tuples:
             events_to_create.append(event)
     
-    events_to_delete = []
+    events_to_delete: List[str] = []
     for event in existing_events:
         event_tuple = (event["summary"], event["start"], event["end"])
         if event_tuple not in desired_tuples:
