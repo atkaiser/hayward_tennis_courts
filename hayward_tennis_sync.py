@@ -276,10 +276,14 @@ def Workspace_calendar_events(service: Any, calendar_id: str, time_min_iso: str,
     events: List[dict] = []
     page_token: Optional[str] = None
     while True:
+        from datetime import datetime
+        tz = ZoneInfo(TIMEZONE)
+        time_min_rfc3339 = datetime.fromisoformat(time_min_iso).replace(tzinfo=tz).isoformat()
+        time_max_rfc3339 = datetime.fromisoformat(time_max_iso).replace(tzinfo=tz).isoformat()
         response = service.events().list(
             calendarId=calendar_id,
-            timeMin=time_min_iso,
-            timeMax=time_max_iso,
+            timeMin=time_min_rfc3339,
+            timeMax=time_max_rfc3339,
             singleEvents=True,
             orderBy='startTime',
             pageToken=page_token
