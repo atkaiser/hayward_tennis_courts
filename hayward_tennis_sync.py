@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import requests
+session: requests.Session = requests.Session()
 from typing import List, Tuple, Any, Optional
 from zoneinfo import ZoneInfo
 from google.oauth2 import service_account
@@ -51,7 +52,7 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     # Throttle
     time.sleep(throttle_seconds)
     try:
-        response = requests.post(url, json=payload)
+        response = session.post(url, json=payload)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching data from Hayward API: {e}")
