@@ -6,7 +6,7 @@ import os
 import sys
 import time
 import requests
-from typing import List
+from typing import List, Tuple
 from zoneinfo import ZoneInfo
 
 # Constants
@@ -228,6 +228,44 @@ def Workspace_calendar_events(service, calendar_id: str, time_min_iso: str, time
         if not page_token:
             break
     return events
+
+def diff_events(desired_slots: dict, existing_events: List[dict], location_name: str) -> Tuple[List[dict], List[str]]:
+    """
+    Compares desired_slots (desired events) with existing_events fetched from the calendar.
+    Each desired event is represented as a tuple (court, start_iso, end_iso).
+    
+    Returns:
+        events_to_create: a list of dictionaries with keys 'summary', 'start', 'end'
+                          representing new events that need to be created.
+        events_to_delete: a list of event IDs from existing_events that are no longer desired.
+    """
+    desired_tuples = set()
+    desired_events = []
+    for court, events in desired_slots.items():
+        for (start, end) in events:
+            event_tuple = (court, start, end)
+            desired_tuples.add(event_tuple)
+            desired_events.append({"summary": court, "start": start, "end": end})
+            
+    existing_tuples = set()
+    for event in existing_events:
+        event_tuple = (event["summary"], event["start"], event["end"])
+        existing_tuples.add(event_tuple)
+    
+    events_to_create = []
+    for event in desired_events:
+        event_tuple = (event["summary"], event["start"], event["end"])
+        if event_tuple not in existing_tuples:
+            events_to_create.append(event)
+    
+    events_to_delete = []
+    for event in existing_events:
+        event_tuple = (event["summary"], event["start"], event["end"])
+        if event_tuple not in desired_tuples:
+            events_to_delete.append(event["id"])
+    
+    logging.info(f"Location {location_name}: {len(events_to_create)} events to create, {len(events_to_delete)} events to delete")
+    return events_to_create, events_to_delete
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
