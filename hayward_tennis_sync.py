@@ -299,6 +299,36 @@ def create_google_event(service, calendar_id: str, court_name: str, start_iso: s
         logging.error(f"Error creating Google Calendar event for {court_name} from {start_iso} to {end_iso}: {e}")
         sys.exit(1)
 
+def delete_google_event(service, calendar_id: str, event_id: str, dry_run: bool) -> None:
+    """
+    Deletes a Google Calendar event.
+    
+    Args:
+        service: Authorized Google Calendar API service object.
+        calendar_id (str): The target calendar ID.
+        event_id (str): The ID of the event to delete.
+        dry_run (bool): If True, logs the planned deletion without performing it.
+        
+    Behavior:
+        - If dry_run is True, logs the planned deletion and returns None.
+        - If dry_run is False, attempts to delete the event using the Calendar API.
+        - If the event is already deleted or not found (e.g., HTTP 404), logs a warning.
+        - For other errors, logs the error and exits.
+    """
+    if dry_run:
+        logging.info(f"[Dry-run] Would delete event: {event_id} from calendar {calendar_id}")
+        return None
+    try:
+        service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+        logging.info(f"Deleted event: {event_id} from calendar {calendar_id}")
+    except Exception as e:
+        if '404' in str(e):
+            logging.warning(f"Event {event_id} already deleted or not found: {e}")
+        else:
+            logging.error(f"Error deleting event {event_id}: {e}")
+            sys.exit(1)
+    return None
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
     parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
