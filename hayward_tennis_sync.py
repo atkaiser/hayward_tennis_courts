@@ -80,9 +80,6 @@ def parse_reservation_data(json_data: bytes) -> dict:
            }
        }
     
-    2. Legacy format: Expects top-level "date" and "locations" keys.
-       Processes reservations in the legacy structure.
-    
     Raises:
         ValueError: if the JSON data is invalid or missing required keys.
     """
@@ -128,37 +125,8 @@ def parse_reservation_data(json_data: bytes) -> dict:
                 result[date_str][location][court_name] = slot_status
         return result
     else:
-        if "date" not in data or "locations" not in data:
-            print(data)
-            raise ValueError("JSON data missing required 'date' or 'locations' keys")
-        date_str: str = data["date"]
-        result: dict = {date_str: {}}
-        locations: List[Any] = data.get("locations")
-        if not isinstance(locations, list):
-            raise ValueError("Expected 'locations' to be a list")
-        for loc in locations:
-            loc_name: Optional[str] = loc.get("name")
-            if not loc_name:
-                continue
-            result[date_str][loc_name] = {}
-            courts: List[Any] = loc.get("courts")
-            if not isinstance(courts, list):
-                raise ValueError("Expected 'courts' to be a list")
-            for court in courts:
-                court_name_orig: Optional[str] = court.get("name")
-                if court_name_orig and "Tennis Court" in court_name_orig:
-                    short_name: str = court_name_orig.replace("Tennis Court ", "Court ")
-                    result[date_str][loc_name][short_name] = {}
-                    reservations: List[Any] = court.get("reservations")
-                    if not isinstance(reservations, list):
-                        raise ValueError("Expected 'reservations' to be a list in court")
-                    for res in reservations:
-                        time_slot: Optional[str] = res.get("time")
-                        booked: Any = res.get("reserved")
-                        if time_slot is None or booked is None:
-                            raise ValueError("Reservation entry missing 'time' or 'reserved'")
-                        result[date_str][loc_name][short_name][time_slot] = booked
-        return result
+        print(data)
+        raise ValueError("JSON data missing required 'body' or 'availability' keys")
 
 def consolidate_booked_slots(parsed_data: dict) -> dict:
     """
