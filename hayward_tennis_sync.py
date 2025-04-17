@@ -334,14 +334,15 @@ def main() -> None:
         parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
         parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
         parser.add_argument("--throttle", type=float, default=DEFAULT_THROTTLE, help="Throttle delay in seconds")
+        parser.add_argument("--credentials-path", required=True, help="Path to Google service account credentials file")
         args: argparse.Namespace = parser.parse_args()
         
         # Set up logging to stdout
         logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
         logging.info("Started hayward tennis sync script")
         
-        # Determine Google credentials path from environment variable or fallback
-        credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "path/to/default/credentials.json")
+        # Determine credentials path from command-line argument
+        credentials_path = args.credentials_path
         service = authenticate_google(credentials_path)
         
         # Determine sync date range
