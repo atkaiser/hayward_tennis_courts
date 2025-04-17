@@ -34,13 +34,24 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     
     Returns the raw response content (JSON).
     """
-    # Construct the URL for the given date. For now, assume the API accepts a
-    # query parameter 'date' formatted as YYYY-MM-DD.
-    url = f"https://api.hayward.example.com/schedule?date={date_str}"
+    # Construct the URL for the Hayward API endpoint
+    url = "https://anc.apm.activecommunities.com/haywardrec/rest/reservation/quickreservation/availability?locale=en-US"
+    # Prepare the JSON payload with the required parameters
+    payload = {
+        "facility_group_id": 2,
+        "customer_id": 0,
+        "company_id": 0,
+        "reserve_date": date_str,
+        "start_time": "08:00:00",
+        "end_time": "22:00:00",
+        "resident": True,
+        "reload": False,
+        "change_time_range": False
+    }
     # Throttle
     time.sleep(throttle_seconds)
     try:
-        response = requests.get(url)
+        response = requests.post(url, json=payload)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching data from Hayward API: {e}")
