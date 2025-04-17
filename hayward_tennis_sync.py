@@ -16,7 +16,7 @@ TIMEZONE: str = 'America/Los_Angeles'
 CALENDAR_IDS: List[str] = ['calendar1@example.com', 'calendar2@example.com']
 DEFAULT_THROTTLE: float = 1.5
 
-def get_sync_date_range(num_days: int = 80) -> List[str]:
+def get_sync_date_range(num_days: int = 3) -> List[str]:
     """
     Calculates and returns a list of date strings for the sync range.
     Start date is today + 2 days, end date is today + 81 days (80 days total).
@@ -335,11 +335,11 @@ def main() -> None:
         logging.info("Started hayward tennis sync script")
         
         # Determine credentials path from command-line argument
-        credentials_path = args.credentials_path
+        credentials_path: str = args.credentials_path
         service = authenticate_google(credentials_path)
         
         # Determine sync date range
-        sync_dates = get_sync_date_range()
+        sync_dates: List[str] = get_sync_date_range()
         logging.info(f"Sync date range: {sync_dates[0]} to {sync_dates[-1]}")
         
         all_parsed_data = {}
