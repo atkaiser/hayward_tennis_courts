@@ -108,7 +108,7 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     response.raise_for_status()
     return response.content
 
-def parse_reservation_data(json_data: bytes) -> dict:
+def parse_reservation_data(json_data: bytes, reserve_date: Optional[str] = None) -> dict:
     """
     Parses the raw JSON data from the Hayward API to extract reservation data.
 
@@ -143,8 +143,11 @@ def parse_reservation_data(json_data: bytes) -> dict:
         resources: List[dict] = avail.get("resources")
         if not isinstance(resources, list):
             raise ValueError("Expected 'resources' to be a list in availability")
-        # Since the response doesn't include a date, use a placeholder key.
-        date_str: str = "requested_date"
+        # Since the response doesn't include a date, use the provided reserve_date if available.
+        if reserve_date is not None:
+            date_str: str = reserve_date
+        else:
+            date_str: str = "requested_date"
         result: dict = {date_str: {}}
         for res in resources:
             resource_name: Optional[str] = res.get("resource_name")
@@ -420,7 +423,7 @@ def main() -> None:
         logging.info(f"Fetching data for {date_str}...")
         raw_data = Workspace_hayward_data(date_str, args.throttle)
         try:
-            daily_data = parse_reservation_data(raw_data)
+            daily_data = parse_reservation_data(raw_data, date_str)
         except ValueError as ve:
             logging.error(f"Error parsing data for {date_str}: {ve}")
             sys.exit(1)
