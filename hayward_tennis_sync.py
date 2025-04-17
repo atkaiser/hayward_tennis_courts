@@ -60,6 +60,19 @@ def find_csrf_token(html_content: str) -> Optional[str]:
         logging.warning("Could not find CSRF token pattern (window.__csrfToken = \"...\") in the HTML content.")
         return None
 
+def get_csrf_token() -> Optional[str]:
+    initial_url: str = "https://anc.apm.activecommunities.com/haywardrec/reservation/landing/quick?locale=en-US&groupId=2"
+    logging.info(f"Making initial request to {initial_url} to establish session...")
+    initial_response = session.get(initial_url, timeout=30)
+    initial_response.raise_for_status()
+    logging.info(f"Initial request successful (Status: {initial_response.status_code}).")
+    csrf_token = find_csrf_token(initial_response.text)
+    if csrf_token:
+        logging.info("Extracted CSRF token.")
+    else:
+        logging.warning("Could not find CSRF token. Proceeding without it, might fail.")
+    return csrf_token
+
 def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     """
     Fetches data from the Hayward API for a given date with throttling.
@@ -425,10 +438,11 @@ def main() -> None:
     logging.info(f"Sync date range: {sync_dates[0]} to {sync_dates[-1]}")
     
     all_parsed_data = {}
+    csrf_token: Optional[str] = get_csrf_token()
     # Fetch and parse data for each date
     for date_str in sync_dates:
         logging.info(f"Fetching data for {date_str}...")
-        raw_data = Workspace_hayward_data(date_str, args.throttle)
+        raw_data = Workspace_hayward_data(date_str, args.throttle, csrf_token)
         try:
             daily_data = parse_reservation_data(raw_data, date_str)
         except ValueError as ve:
