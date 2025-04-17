@@ -13,7 +13,10 @@ from googleapiclient.discovery import build
 
 # Constants
 TIMEZONE: str = 'America/Los_Angeles'
-CALENDAR_IDS: List[str] = ['calendar1@example.com', 'calendar2@example.com']
+LOCATION_TO_CALENDAR = {
+    "Mervin": "c1b24574cbbcfe3d62b323de33ebc50956edf9212737a88f9423c661c5e37204@group.calendar.google.com",
+    "Bay": "8320fe0a847ce736584415a3777a3d4eb69e650d459ae9329fa1aaed42cf36d1@group.calendar.google.com"
+}
 DEFAULT_THROTTLE: float = 1.5
 
 # Set up session
@@ -433,13 +436,6 @@ def main() -> None:
     # Get desired state from parsed reservation data by consolidating bookings
     desired_state = consolidate_booked_slots(all_parsed_data)
     
-    # Define a mapping from location name to calendar id.
-    # Assuming first calendar id for 'Mervin' and second for 'Bay'
-    location_to_calendar = {
-        "Mervin": CALENDAR_IDS[0] if len(CALENDAR_IDS) > 0 else None,
-        "Bay": CALENDAR_IDS[1] if len(CALENDAR_IDS) > 1 else None
-    }
-    
     # Calculate time boundaries for the sync window
     # Use first sync date with time "T00:00:00" and last sync date plus one day "T00:00:00"
     time_min = sync_dates[0] + "T00:00:00"
@@ -448,11 +444,8 @@ def main() -> None:
     time_max = next_day.strftime("%Y-%m-%d") + "T00:00:00"
     
     # Process each location based on the mapping
-    for location, calendar_id in location_to_calendar.items():
+    for location, calendar_id in LOCATION_TO_CALENDAR.items():
         logging.info(f"Processing location: {location}...")
-        if calendar_id is None:
-            logging.warning(f"No calendar ID found for location {location}, skipping.")
-            continue
         if location not in desired_state:
             logging.info(f"No booking data for {location}, skipping.")
             continue
