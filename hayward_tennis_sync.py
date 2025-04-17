@@ -73,37 +73,21 @@ def get_csrf_token() -> Optional[str]:
         logging.warning("Could not find CSRF token. Proceeding without it, might fail.")
     return csrf_token
 
-def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
+def Workspace_hayward_data(date_str: str, throttle_seconds: float, csrf_token: Optional[str]) -> bytes:
     """
     Fetches data from the Hayward API for a given date with throttling.
-
+    
     Constructs the URL using the provided date_str.
     Implements throttling using time.sleep(throttle_seconds) before making the request.
     
     Returns the raw response content (JSON).
     """
-    # Make initial request to get csrf token
-    initial_url = "https://anc.apm.activecommunities.com/haywardrec/reservation/landing/quick?locale=en-US&groupId=2"
-    logging.info(f"Making initial request to {initial_url} to establish session...")
-    initial_response = session.get(initial_url, timeout=30)
-    initial_response.raise_for_status()
-    logging.info(f"Initial request successful (Status: {initial_response.status_code}).")
-    
-    # 2. Extract CSRF token (implement find_csrf_token)
-    csrf_token = find_csrf_token(initial_response.text)
-    if csrf_token:
-        logging.info("Extracted CSRF token.")
-    else:
-        logging.warning("Could not find CSRF token. Proceeding without it, might fail.")
-        # Decide if you want to exit here if token is strictly required
-
     headers = {
-        # --- IMPORTANT: Determine the correct header name ---
         'X-Csrf-Token': csrf_token,
-        'X-Requested-With': 'XMLHttpRequest', # Sometimes required for AJAX endpoints
+        'X-Requested-With': 'XMLHttpRequest',
         'Referer': 'https://anc.apm.activecommunities.com/haywardrec/reservation/landing/quick?locale=en-US&groupId=2'
     }
-
+    
     # Construct the URL for the Hayward API endpoint
     url = "https://anc.apm.activecommunities.com/haywardrec/rest/reservation/quickreservation/availability?locale=en-US"
     # Prepare the JSON payload with the required parameters
