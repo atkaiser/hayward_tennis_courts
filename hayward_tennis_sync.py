@@ -267,6 +267,38 @@ def diff_events(desired_slots: dict, existing_events: List[dict], location_name:
     logging.info(f"Location {location_name}: {len(events_to_create)} events to create, {len(events_to_delete)} events to delete")
     return events_to_create, events_to_delete
 
+def create_google_event(service, calendar_id: str, court_name: str, start_iso: str, end_iso: str, timezone: str, dry_run: bool) -> dict:
+    """
+    Creates a Google Calendar event for a given court time slot.
+    
+    Args:
+        service: Authorized Google Calendar API service object.
+        calendar_id (str): Target calendar ID.
+        court_name (str): Court name (used as event summary).
+        start_iso (str): Event start time in ISO 8601 format.
+        end_iso (str): Event end time in ISO 8601 format.
+        timezone (str): Timezone identifier.
+        dry_run (bool): If True, logs action and does not create event.
+        
+    Returns:
+        dict: Details of the created event if not in dry-run mode, otherwise None.
+    """
+    event_body = {
+        "summary": court_name,
+        "start": {"dateTime": start_iso, "timeZone": timezone},
+        "end": {"dateTime": end_iso, "timeZone": timezone}
+    }
+    if dry_run:
+        logging.info(f"[Dry-run] Would create event: {event_body}")
+        return None
+    try:
+        event = service.events().insert(calendarId=calendar_id, body=event_body).execute()
+        logging.info(f"Created event: {event.get('id')}")
+        return event
+    except Exception as e:
+        logging.error(f"Error creating Google Calendar event for {court_name} from {start_iso} to {end_iso}: {e}")
+        sys.exit(1)
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
     parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
