@@ -2,11 +2,10 @@ import argparse
 import datetime
 import json
 import logging
-import os
+import re
 import sys
 import time
 import requests
-session: requests.Session = requests.Session()
 from typing import List, Tuple, Any, Optional
 from zoneinfo import ZoneInfo
 from google.oauth2 import service_account
@@ -17,6 +16,11 @@ TIMEZONE: str = 'America/Los_Angeles'
 CALENDAR_IDS: List[str] = ['calendar1@example.com', 'calendar2@example.com']
 DEFAULT_THROTTLE: float = 1.5
 
+# Set up session
+session: requests.Session = requests.Session()
+session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}) # Example User Agent
+
+
 def get_sync_date_range(num_days: int = 3) -> List[str]:
     """
     Calculates and returns a list of date strings for the sync range.
@@ -25,7 +29,34 @@ def get_sync_date_range(num_days: int = 3) -> List[str]:
     start_date = datetime.date.today() + datetime.timedelta(days=2)
     # Create a list of 80 days starting from start_date
     return [(start_date + datetime.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_days)]
-    
+
+def find_csrf_token(html_content: str) -> Optional[str]:
+    """
+    Parses HTML content to find the CSRF token assigned to window.__csrfToken
+    using regular expressions.
+
+    Args:
+        html_content: The raw HTML text from the initial page request.
+
+    Returns:
+        The extracted CSRF token string, or None if not found.
+    """
+    # Regex pattern to find: window.__csrfToken = "TOKEN_VALUE";
+    # It captures the sequence of characters inside the double quotes.
+    # Assumes the token consists of hex characters and hyphens (like a UUID).
+    # Escape dots in '__csrfToken' as '.' is a special regex character.
+    pattern = r'window\.__csrfToken\s*=\s*"([a-fA-F0-9\-]+)"' # Added \s* for robustness
+
+    match = re.search(pattern, html_content)
+
+    if match:
+        token = match.group(1)
+        logging.info(f"Successfully extracted CSRF token: {token[:4]}...{token[-4:]}") # Log partial token
+        return token
+    else:
+        logging.warning("Could not find CSRF token pattern (window.__csrfToken = \"...\") in the HTML content.")
+        return None
+
 def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     """
     Fetches data from the Hayward API for a given date with throttling.
@@ -35,6 +66,32 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     
     Returns the raw response content (JSON).
     """
+    # Make initial request to get csrf token
+    initial_url = "https://anc.apm.activecommunities.com/haywardrec/reservation/landing/quick?locale=en-US&groupId=2"
+    logging.info(f"Making initial request to {initial_url} to establish session...")
+    try:
+        initial_response = session.get(initial_url, timeout=30)
+        initial_response.raise_for_status()
+        logging.info(f"Initial request successful (Status: {initial_response.status_code}).")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to make initial request to {initial_url}: {e}")
+        sys.exit(1) # Cannot proceed without initial page
+    
+    # 2. Extract CSRF token (implement find_csrf_token)
+    csrf_token = find_csrf_token(initial_response.text)
+    if csrf_token:
+        logging.info("Extracted CSRF token.")
+    else:
+        logging.warning("Could not find CSRF token. Proceeding without it, might fail.")
+        # Decide if you want to exit here if token is strictly required
+
+    headers = {
+        # --- IMPORTANT: Determine the correct header name ---
+        'X-Csrf-Token': csrf_token,
+        'X-Requested-With': 'XMLHttpRequest', # Sometimes required for AJAX endpoints
+        'Referer': 'https://anc.apm.activecommunities.com/haywardrec/reservation/landing/quick?locale=en-US&groupId=2'
+    }
+
     # Construct the URL for the Hayward API endpoint
     url = "https://anc.apm.activecommunities.com/haywardrec/rest/reservation/quickreservation/availability?locale=en-US"
     # Prepare the JSON payload with the required parameters
@@ -52,7 +109,7 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     # Throttle
     time.sleep(throttle_seconds)
     try:
-        response = session.post(url, json=payload)
+        response = session.post(url, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching data from Hayward API: {e}")
