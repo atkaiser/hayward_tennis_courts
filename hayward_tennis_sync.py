@@ -7,6 +7,7 @@ import sys
 import time
 import requests
 from typing import List
+from zoneinfo import ZoneInfo
 
 # Constants
 TIMEZONE: str = 'America/Los_Angeles'
@@ -100,6 +101,61 @@ def parse_reservation_data(json_data: bytes) -> dict:
                         raise ValueError("Reservation entry missing 'time' or 'reserved'")
                     result[date_str][loc_name][short_name][time_slot] = booked
     return result
+
+def consolidate_booked_slots(parsed_data: dict) -> dict:
+    """
+    Consolidates booked slots from parsed reservation data.
+
+    For each date, location, and court, it identifies consecutive booked 30-minute slots,
+    merging them into single start/end ISO 8601 time ranges with timezone info.
+
+    Returns:
+        A dictionary structured as:
+        {
+            "Mervin": {
+                "Court 1": [("start_iso", "end_iso"), ...],
+                "Court 2": [...]
+            },
+            "Bay": { ... }
+        }
+    """
+    from datetime import datetime, timedelta
+
+    consolidated = {}
+    for date_str, locations in parsed_data.items():
+        for location, courts in locations.items():
+            for court, slots in courts.items():
+                # Filter and sort timeslots that are booked
+                booked_times = [time_str for time_str, is_booked in slots.items() if is_booked]
+                if not booked_times:
+                    continue
+                booked_times.sort()
+                events = []
+                fmt = "%Y-%m-%d %H:%M"
+                tz = ZoneInfo(TIMEZONE)
+                current_start = None
+                current_end = None
+                for t in booked_times:
+                    slot_dt = datetime.strptime(f"{date_str} {t}", fmt)
+                    slot_dt = slot_dt.replace(tzinfo=tz)
+                    if current_start is None:
+                        current_start = slot_dt
+                        current_end = slot_dt + timedelta(minutes=30)
+                    else:
+                        if slot_dt == current_end:
+                            current_end += timedelta(minutes=30)
+                        else:
+                            events.append((current_start.isoformat(), current_end.isoformat()))
+                            current_start = slot_dt
+                            current_end = slot_dt + timedelta(minutes=30)
+                if current_start is not None:
+                    events.append((current_start.isoformat(), current_end.isoformat()))
+                if location not in consolidated:
+                    consolidated[location] = {}
+                if court not in consolidated[location]:
+                    consolidated[location][court] = []
+                consolidated[location][court].extend(events)
+    return consolidated
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
