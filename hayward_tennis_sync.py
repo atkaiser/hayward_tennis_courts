@@ -8,6 +8,8 @@ import time
 import requests
 from typing import List, Tuple
 from zoneinfo import ZoneInfo
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 # Constants
 TIMEZONE: str = 'America/Los_Angeles'
@@ -170,20 +172,11 @@ def authenticate_google(credentials_path: str):
     Raises:
         Exception: If credential loading or service creation fails.
     """
-    try:
-        from google.oauth2 import service_account
-        from googleapiclient.discovery import build
-    except ImportError as e:
-        logging.error("Required Google libraries are not installed. Please install 'google-auth' and 'google-api-python-client'.")
-        sys.exit(1)
-        
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
     scopes = ['https://www.googleapis.com/auth/calendar.events']
-    try:
-        credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
-        service = build('calendar', 'v3', credentials=credentials)
-    except Exception as e:
-        logging.error(f"Error during Google API authentication: {e}")
-        sys.exit(1)
+    credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
+    service = build('calendar', 'v3', credentials=credentials)
     return service
 
 def Workspace_calendar_events(service, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
