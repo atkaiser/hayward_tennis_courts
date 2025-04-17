@@ -6,7 +6,7 @@ import os
 import sys
 import time
 import requests
-from typing import List, Tuple
+from typing import List, Tuple, Any, Optional
 from zoneinfo import ZoneInfo
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -159,7 +159,7 @@ def consolidate_booked_slots(parsed_data: dict) -> dict:
                 consolidated[location][court].extend(events)
     return consolidated
 
-def authenticate_google(credentials_path: str):
+def authenticate_google(credentials_path: str) -> Any:
     """
     Authenticates to Google Calendar API using a service account credentials file.
     
@@ -179,7 +179,7 @@ def authenticate_google(credentials_path: str):
     service = build('calendar', 'v3', credentials=credentials)
     return service
 
-def Workspace_calendar_events(service, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
+def Workspace_calendar_events(service: Any, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
     """
     Fetches existing calendar events from a given Google Calendar within the provided time range.
     
@@ -260,7 +260,7 @@ def diff_events(desired_slots: dict, existing_events: List[dict], location_name:
     logging.info(f"Location {location_name}: {len(events_to_create)} events to create, {len(events_to_delete)} events to delete")
     return events_to_create, events_to_delete
 
-def create_google_event(service, calendar_id: str, court_name: str, start_iso: str, end_iso: str, timezone: str, dry_run: bool) -> dict:
+def create_google_event(service: Any, calendar_id: str, court_name: str, start_iso: str, end_iso: str, timezone: str, dry_run: bool) -> Optional[dict]:
     """
     Creates a Google Calendar event for a given court time slot.
     
@@ -292,7 +292,7 @@ def create_google_event(service, calendar_id: str, court_name: str, start_iso: s
         logging.error(f"Error creating Google Calendar event for {court_name} from {start_iso} to {end_iso}: {e}")
         sys.exit(1)
 
-def delete_google_event(service, calendar_id: str, event_id: str, dry_run: bool) -> None:
+def delete_google_event(service: Any, calendar_id: str, event_id: str, dry_run: bool) -> None:
     """
     Deletes a Google Calendar event.
     
