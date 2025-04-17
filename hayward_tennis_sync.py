@@ -44,6 +44,63 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
         sys.exit(1)
     return response.content
 
+def parse_reservation_data(json_data: bytes) -> dict:
+    """
+    Parses the raw JSON data from the Hayward API to extract reservation data.
+
+    The expected JSON structure is determined by scanning through locations, courts, and time slots.
+    It filters and returns a dictionary structured as:
+    
+    {
+        "YYYY-MM-DD": {
+            "Mervin": {
+                "Court 1": {"09:00": True, "09:30": True, ... },
+                "Court 2": {"09:00": False, ...}
+            },
+            "Bay": { ... }
+        }
+    }
+    
+    Raises:
+        ValueError: if the JSON data is invalid or missing required keys.
+    """
+    try:
+        data = json.loads(json_data.decode("utf-8"))
+    except Exception as e:
+        raise ValueError("Failed to parse JSON data") from e
+
+    result = {}
+    if "date" not in data or "locations" not in data:
+        raise ValueError("JSON data missing required 'date' or 'locations' keys")
+    date_str = data["date"]
+    result[date_str] = {}
+    locations = data.get("locations")
+    if not isinstance(locations, list):
+        raise ValueError("Expected 'locations' to be a list")
+    for loc in locations:
+        loc_name = loc.get("name")
+        if not loc_name:
+            continue
+        result[date_str][loc_name] = {}
+        courts = loc.get("courts")
+        if not isinstance(courts, list):
+            raise ValueError("Expected 'courts' to be a list")
+        for court in courts:
+            court_name = court.get("name")
+            if court_name and "Tennis Court" in court_name:
+                short_name = court_name.replace("Tennis Court ", "Court ")
+                result[date_str][loc_name][short_name] = {}
+                reservations = court.get("reservations")
+                if not isinstance(reservations, list):
+                    raise ValueError("Expected 'reservations' to be a list in court")
+                for res in reservations:
+                    time_slot = res.get("time")
+                    booked = res.get("reserved")
+                    if time_slot is None or booked is None:
+                        raise ValueError("Reservation entry missing 'time' or 'reserved'")
+                    result[date_str][loc_name][short_name][time_slot] = booked
+    return result
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
     parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
