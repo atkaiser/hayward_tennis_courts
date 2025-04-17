@@ -186,6 +186,49 @@ def authenticate_google(credentials_path: str):
         sys.exit(1)
     return service
 
+def Workspace_calendar_events(service, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
+    """
+    Fetches existing calendar events from a given Google Calendar within the provided time range.
+    
+    Only returns events that are likely created by this script (filtered by summary starting with "Court ").
+    
+    Args:
+        service: Authorized Google Calendar API service object.
+        calendar_id (str): The target calendar ID.
+        time_min_iso (str): The lower bound (inclusive) of event start times (ISO format).
+        time_max_iso (str): The upper bound (exclusive) of event end times (ISO format).
+        
+    Returns:
+        List[dict]: A list of event dictionaries containing keys 'id', 'summary', 'start', and 'end'.
+    """
+    events = []
+    page_token = None
+    while True:
+        response = service.events().list(
+            calendarId=calendar_id,
+            timeMin=time_min_iso,
+            timeMax=time_max_iso,
+            singleEvents=True,
+            orderBy='startTime',
+            pageToken=page_token
+        ).execute()
+        for event in response.get('items', []):
+            summary = event.get("summary", "")
+            # Filter events: include only those with summary starting with "Court "
+            if summary.startswith("Court "):
+                start = event["start"].get("dateTime", event["start"].get("date"))
+                end = event["end"].get("dateTime", event["end"].get("date"))
+                events.append({
+                    "id": event["id"],
+                    "summary": summary,
+                    "start": start,
+                    "end": end
+                })
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
+    return events
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
     parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
