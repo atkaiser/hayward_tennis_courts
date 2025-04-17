@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import time
+import requests
 
 # Constants
 TIMEZONE = 'America/Los_Angeles'
@@ -19,6 +20,28 @@ def get_sync_date_range(num_days=80):
     start_date = datetime.date.today() + datetime.timedelta(days=2)
     # Create a list of 80 days starting from start_date
     return [(start_date + datetime.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_days)]
+    
+def Workspace_hayward_data(date_str, throttle_seconds):
+    """
+    Fetches data from the Hayward API for a given date with throttling.
+
+    Constructs the URL using the provided date_str.
+    Implements throttling using time.sleep(throttle_seconds) before making the request.
+    
+    Returns the raw response content (JSON).
+    """
+    # Construct the URL for the given date. For now, assume the API accepts a
+    # query parameter 'date' formatted as YYYY-MM-DD.
+    url = f"https://api.hayward.example.com/schedule?date={date_str}"
+    # Throttle
+    time.sleep(throttle_seconds)
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error fetching data from Hayward API: {e}")
+        sys.exit(1)
+    return response.content
 
 def main():
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
