@@ -50,12 +50,8 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     }
     # Throttle
     time.sleep(throttle_seconds)
-    headers: dict = {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": "Fetch"
-    }
     try:
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
         logging.error(f"Error fetching data from Hayward API: {e}")
