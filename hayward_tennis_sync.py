@@ -129,6 +129,7 @@ def parse_reservation_data(json_data: bytes) -> dict:
         return result
     else:
         if "date" not in data or "locations" not in data:
+            print(data)
             raise ValueError("JSON data missing required 'date' or 'locations' keys")
         date_str: str = data["date"]
         result: dict = {date_str: {}}
