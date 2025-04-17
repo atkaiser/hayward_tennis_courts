@@ -6,13 +6,14 @@ import os
 import sys
 import time
 import requests
+from typing import List
 
 # Constants
-TIMEZONE = 'America/Los_Angeles'
-CALENDAR_IDS = ['calendar1@example.com', 'calendar2@example.com']
-DEFAULT_THROTTLE = 1.5
+TIMEZONE: str = 'America/Los_Angeles'
+CALENDAR_IDS: List[str] = ['calendar1@example.com', 'calendar2@example.com']
+DEFAULT_THROTTLE: float = 1.5
 
-def get_sync_date_range(num_days=80):
+def get_sync_date_range(num_days: int = 80) -> List[str]:
     """
     Calculates and returns a list of date strings for the sync range.
     Start date is today + 2 days, end date is today + 81 days (80 days total).
@@ -21,7 +22,7 @@ def get_sync_date_range(num_days=80):
     # Create a list of 80 days starting from start_date
     return [(start_date + datetime.timedelta(days=i)).strftime("%Y-%m-%d") for i in range(num_days)]
     
-def Workspace_hayward_data(date_str, throttle_seconds):
+def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     """
     Fetches data from the Hayward API for a given date with throttling.
 
@@ -43,11 +44,11 @@ def Workspace_hayward_data(date_str, throttle_seconds):
         sys.exit(1)
     return response.content
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
     parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
     parser.add_argument("--throttle", type=float, default=DEFAULT_THROTTLE, help="Throttle delay in seconds")
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
     
     # Set up basic logging to stdout
     logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
