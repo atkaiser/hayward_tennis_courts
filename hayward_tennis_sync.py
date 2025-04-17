@@ -330,23 +330,83 @@ def delete_google_event(service, calendar_id: str, event_id: str, dry_run: bool)
     return None
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
-    parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
-    parser.add_argument("--throttle", type=float, default=DEFAULT_THROTTLE, help="Throttle delay in seconds")
-    args: argparse.Namespace = parser.parse_args()
-    
-    # Set up basic logging to stdout
-    logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
-    logging.info("Started hayward tennis sync script")
-    
-    sync_dates = get_sync_date_range()
-    logging.info(f"Sync date range: {sync_dates[0]} to {sync_dates[-1]}")
-    
-    if args.dry_run:
-        logging.info("Dry run enabled. No changes will be made.")
-    
-    # Placeholder for main sync logic
-    logging.info("Script execution completed.")
+    try:
+        parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
+        parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
+        parser.add_argument("--throttle", type=float, default=DEFAULT_THROTTLE, help="Throttle delay in seconds")
+        args: argparse.Namespace = parser.parse_args()
+        
+        # Set up logging to stdout
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout, format='%(asctime)s - %(levelname)s - %(message)s')
+        logging.info("Started hayward tennis sync script")
+        
+        # Determine Google credentials path from environment variable or fallback
+        credentials_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "path/to/default/credentials.json")
+        service = authenticate_google(credentials_path)
+        
+        # Determine sync date range
+        sync_dates = get_sync_date_range()
+        logging.info(f"Sync date range: {sync_dates[0]} to {sync_dates[-1]}")
+        
+        all_parsed_data = {}
+        # Fetch and parse data for each date
+        for date_str in sync_dates:
+            logging.info(f"Fetching data for {date_str}...")
+            raw_data = Workspace_hayward_data(date_str, args.throttle)
+            try:
+                daily_data = parse_reservation_data(raw_data)
+            except ValueError as ve:
+                logging.error(f"Error parsing data for {date_str}: {ve}")
+                sys.exit(1)
+            # Merge daily data into all_parsed_data
+            all_parsed_data.update(daily_data)
+        
+        # Get desired state from parsed reservation data by consolidating bookings
+        desired_state = consolidate_booked_slots(all_parsed_data)
+        
+        # Define a mapping from location name to calendar id.
+        # Assuming first calendar id for 'Mervin' and second for 'Bay'
+        location_to_calendar = {
+            "Mervin": CALENDAR_IDS[0] if len(CALENDAR_IDS) > 0 else None,
+            "Bay": CALENDAR_IDS[1] if len(CALENDAR_IDS) > 1 else None
+        }
+        
+        # Calculate time boundaries for the sync window
+        # Use first sync date with time "T00:00:00" and last sync date plus one day "T00:00:00"
+        time_min = sync_dates[0] + "T00:00:00"
+        last_date = datetime.datetime.strptime(sync_dates[-1], "%Y-%m-%d").date()
+        next_day = last_date + datetime.timedelta(days=1)
+        time_max = next_day.strftime("%Y-%m-%d") + "T00:00:00"
+        
+        # Process each location based on the mapping
+        for location, calendar_id in location_to_calendar.items():
+            logging.info(f"Processing location: {location}...")
+            if calendar_id is None:
+                logging.warning(f"No calendar ID found for location {location}, skipping.")
+                continue
+            if location not in desired_state:
+                logging.info(f"No booking data for {location}, skipping.")
+                continue
+            
+            try:
+                existing_events = Workspace_calendar_events(service, calendar_id, time_min, time_max)
+            except Exception as e:
+                logging.warning(f"Failed to fetch events for {location} (calendar {calendar_id}): {e}")
+                continue
+            
+            events_to_create, events_to_delete = diff_events(desired_state[location], existing_events, location)
+            logging.info(f"{location}: {len(events_to_create)} events to create, {len(events_to_delete)} events to delete.")
+            
+            for event in events_to_create:
+                create_google_event(service, calendar_id, event["summary"], event["start"], event["end"], TIMEZONE, args.dry_run)
+            for event_id in events_to_delete:
+                delete_google_event(service, calendar_id, event_id, args.dry_run)
+        
+        logging.info("Script execution completed.")
+        
+    except Exception as ex:
+        logging.error(f"Critical error in main execution: {ex}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
