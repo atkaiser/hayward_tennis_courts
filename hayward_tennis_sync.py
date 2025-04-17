@@ -69,13 +69,9 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     # Make initial request to get csrf token
     initial_url = "https://anc.apm.activecommunities.com/haywardrec/reservation/landing/quick?locale=en-US&groupId=2"
     logging.info(f"Making initial request to {initial_url} to establish session...")
-    try:
-        initial_response = session.get(initial_url, timeout=30)
-        initial_response.raise_for_status()
-        logging.info(f"Initial request successful (Status: {initial_response.status_code}).")
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Failed to make initial request to {initial_url}: {e}")
-        sys.exit(1) # Cannot proceed without initial page
+    initial_response = session.get(initial_url, timeout=30)
+    initial_response.raise_for_status()
+    logging.info(f"Initial request successful (Status: {initial_response.status_code}).")
     
     # 2. Extract CSRF token (implement find_csrf_token)
     csrf_token = find_csrf_token(initial_response.text)
@@ -108,12 +104,8 @@ def Workspace_hayward_data(date_str: str, throttle_seconds: float) -> bytes:
     }
     # Throttle
     time.sleep(throttle_seconds)
-    try:
-        response = session.post(url, json=payload, headers=headers, timeout=30)
-        response.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Error fetching data from Hayward API: {e}")
-        sys.exit(1)
+    response = session.post(url, json=payload, headers=headers, timeout=30)
+    response.raise_for_status()
     return response.content
 
 def parse_reservation_data(json_data: bytes) -> dict:
@@ -141,10 +133,7 @@ def parse_reservation_data(json_data: bytes) -> dict:
     Raises:
         ValueError: if the JSON data is invalid or missing required keys.
     """
-    try:
-        data: Any = json.loads(json_data.decode("utf-8"))
-    except Exception as e:
-        raise ValueError("Failed to parse JSON data") from e
+    data: Any = json.loads(json_data.decode("utf-8"))
 
     if "body" in data and "availability" in data["body"]:
         avail: dict = data["body"]["availability"]
@@ -405,7 +394,6 @@ def delete_google_event(service: Any, calendar_id: str, event_id: str, dry_run: 
     return None
 
 def main() -> None:
-    try:
         parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
         parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
         parser.add_argument("--throttle", type=float, default=DEFAULT_THROTTLE, help="Throttle delay in seconds")
@@ -480,9 +468,6 @@ def main() -> None:
         
         logging.info("Script execution completed.")
         
-    except Exception as ex:
-        logging.error(f"Critical error in main execution: {ex}")
-        sys.exit(1)
 
 if __name__ == "__main__":
     main()
