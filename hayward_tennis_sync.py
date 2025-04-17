@@ -62,18 +62,26 @@ def parse_reservation_data(json_data: bytes) -> dict:
     """
     Parses the raw JSON data from the Hayward API to extract reservation data.
 
-    The expected JSON structure is determined by scanning through locations, courts, and time slots.
-    It filters and returns a dictionary structured as:
+    Supports two formats:
     
-    {
-        "YYYY-MM-DD": {
-            "Mervin": {
-                "Court 1": {"09:00": True, "09:30": True, ... },
-                "Court 2": {"09:00": False, ...}
-            },
-            "Bay": { ... }
-        }
-    }
+    1. New format: The JSON response contains "body" -> "availability" with "time_slots" and "resources".
+       Each resource with a "resource_name" containing "Tennis Court" is processed.
+       The resource name is expected to be in the format "Location - Tennis Court X".
+       Time slot details from "time_slot_details" are matched with "time_slots" to determine reservation status.
+       The resulting structure is:
+       
+       {
+           "requested_date": {
+               "Location": {
+                   "Court X": {"HH:MM": True/False, ...},
+                   ...
+               },
+               ...
+           }
+       }
+    
+    2. Legacy format: Expects top-level "date" and "locations" keys.
+       Processes reservations in the legacy structure.
     
     Raises:
         ValueError: if the JSON data is invalid or missing required keys.
@@ -83,37 +91,73 @@ def parse_reservation_data(json_data: bytes) -> dict:
     except Exception as e:
         raise ValueError("Failed to parse JSON data") from e
 
-    result = {}
-    if "date" not in data or "locations" not in data:
-        raise ValueError("JSON data missing required 'date' or 'locations' keys")
-    date_str = data["date"]
-    result[date_str] = {}
-    locations = data.get("locations")
-    if not isinstance(locations, list):
-        raise ValueError("Expected 'locations' to be a list")
-    for loc in locations:
-        loc_name = loc.get("name")
-        if not loc_name:
-            continue
-        result[date_str][loc_name] = {}
-        courts = loc.get("courts")
-        if not isinstance(courts, list):
-            raise ValueError("Expected 'courts' to be a list")
-        for court in courts:
-            court_name = court.get("name")
-            if court_name and "Tennis Court" in court_name:
-                short_name = court_name.replace("Tennis Court ", "Court ")
-                result[date_str][loc_name][short_name] = {}
-                reservations = court.get("reservations")
-                if not isinstance(reservations, list):
-                    raise ValueError("Expected 'reservations' to be a list in court")
-                for res in reservations:
-                    time_slot = res.get("time")
-                    booked = res.get("reserved")
-                    if time_slot is None or booked is None:
-                        raise ValueError("Reservation entry missing 'time' or 'reserved'")
-                    result[date_str][loc_name][short_name][time_slot] = booked
-    return result
+    if "body" in data and "availability" in data["body"]:
+        avail: dict = data["body"]["availability"]
+        time_slots: List[str] = avail.get("time_slots")
+        if not isinstance(time_slots, list):
+            raise ValueError("Expected 'time_slots' to be a list in availability")
+        resources: List[dict] = avail.get("resources")
+        if not isinstance(resources, list):
+            raise ValueError("Expected 'resources' to be a list in availability")
+        # Since the response doesn't include a date, use a placeholder key.
+        date_str: str = "requested_date"
+        result: dict = {date_str: {}}
+        for res in resources:
+            resource_name: Optional[str] = res.get("resource_name")
+            if resource_name and "Tennis Court" in resource_name:
+                parts: List[str] = resource_name.split(" - ")
+                if len(parts) != 2:
+                    continue
+                location: str = parts[0]
+                court_full: str = parts[1]
+                court_name: str = court_full.replace("Tennis Court ", "Court ")
+                if location not in result[date_str]:
+                    result[date_str][location] = {}
+                details: List[dict] = res.get("time_slot_details")
+                if not isinstance(details, list):
+                    raise ValueError("Expected 'time_slot_details' to be a list")
+                slot_status: dict = {}
+                for idx, t in enumerate(time_slots):
+                    time_key: str = t[:5]
+                    if idx < len(details):
+                        detail: dict = details[idx]
+                        reserved: bool = (detail.get("status") == 1)
+                        slot_status[time_key] = reserved
+                    else:
+                        slot_status[time_key] = False
+                result[date_str][location][court_name] = slot_status
+        return result
+    else:
+        if "date" not in data or "locations" not in data:
+            raise ValueError("JSON data missing required 'date' or 'locations' keys")
+        date_str: str = data["date"]
+        result: dict = {date_str: {}}
+        locations: List[Any] = data.get("locations")
+        if not isinstance(locations, list):
+            raise ValueError("Expected 'locations' to be a list")
+        for loc in locations:
+            loc_name: Optional[str] = loc.get("name")
+            if not loc_name:
+                continue
+            result[date_str][loc_name] = {}
+            courts: List[Any] = loc.get("courts")
+            if not isinstance(courts, list):
+                raise ValueError("Expected 'courts' to be a list")
+            for court in courts:
+                court_name_orig: Optional[str] = court.get("name")
+                if court_name_orig and "Tennis Court" in court_name_orig:
+                    short_name: str = court_name_orig.replace("Tennis Court ", "Court ")
+                    result[date_str][loc_name][short_name] = {}
+                    reservations: List[Any] = court.get("reservations")
+                    if not isinstance(reservations, list):
+                        raise ValueError("Expected 'reservations' to be a list in court")
+                    for res in reservations:
+                        time_slot: Optional[str] = res.get("time")
+                        booked: Any = res.get("reserved")
+                        if time_slot is None or booked is None:
+                            raise ValueError("Reservation entry missing 'time' or 'reserved'")
+                        result[date_str][loc_name][short_name][time_slot] = booked
+        return result
 
 def consolidate_booked_slots(parsed_data: dict) -> dict:
     """
