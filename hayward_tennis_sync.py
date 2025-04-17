@@ -157,6 +157,35 @@ def consolidate_booked_slots(parsed_data: dict) -> dict:
                 consolidated[location][court].extend(events)
     return consolidated
 
+def authenticate_google(credentials_path: str):
+    """
+    Authenticates to Google Calendar API using a service account credentials file.
+    
+    Args:
+        credentials_path (str): The path to the service account JSON credentials file.
+    
+    Returns:
+        googleapiclient.discovery.Resource: Authorized Google Calendar API service object.
+    
+    Raises:
+        Exception: If credential loading or service creation fails.
+    """
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+    except ImportError as e:
+        logging.error("Required Google libraries are not installed. Please install 'google-auth' and 'google-api-python-client'.")
+        sys.exit(1)
+        
+    scopes = ['https://www.googleapis.com/auth/calendar.events']
+    try:
+        credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
+        service = build('calendar', 'v3', credentials=credentials)
+    except Exception as e:
+        logging.error(f"Error during Google API authentication: {e}")
+        sys.exit(1)
+    return service
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hayward Tennis Sync Script")
     parser.add_argument("--dry-run", action="store_true", help="Execute in dry-run mode")
