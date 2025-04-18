@@ -17,14 +17,14 @@ LOCATION_TO_CALENDAR = {
     "Mervin": "c1b24574cbbcfe3d62b323de33ebc50956edf9212737a88f9423c661c5e37204@group.calendar.google.com",
     "Bay": "8320fe0a847ce736584415a3777a3d4eb69e650d459ae9329fa1aaed42cf36d1@group.calendar.google.com"
 }
-DEFAULT_THROTTLE: float = 1.5
+DEFAULT_THROTTLE: float = 5.0
 
 # Set up session
 session: requests.Session = requests.Session()
 session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}) # Example User Agent
 
 
-def get_sync_date_range(num_days: int = 4) -> List[str]:
+def get_sync_date_range(num_days: int = 85) -> List[str]:
     """
     Calculates and returns a list of date strings for the sync range.
     Start date is today + 2 days, end date is today + 81 days (80 days total).
