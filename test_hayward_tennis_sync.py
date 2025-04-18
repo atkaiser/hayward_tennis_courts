@@ -38,30 +38,29 @@ def test_fetch_hayward_data(monkeypatch):
     monkeypatch.setattr(time, "sleep", fake_sleep)
     monkeypatch.setattr(sync.requests, "get", fake_get)
     
-    result = sync.Workspace_hayward_data("2025-04-20", 1.5)
+    result = sync.Workspace_hayward_data("2025-04-20", 1.5, None)
     assert result == fake_content
 
 # Test parse_reservation_data with valid JSON
 def test_parse_reservation_data_valid():
     sample_json = {
-        "date": "2025-04-20",
-        "locations": [
-            {
-                "name": "Mervin",
-                "courts": [
+        "body": {
+            "availability": {
+                "time_slots": ["09:00-09:30", "09:30-10:00"],
+                "resources": [
                     {
-                        "name": "Tennis Court 1",
-                        "reservations": [
-                            {"time": "09:00", "reserved": True},
-                            {"time": "09:30", "reserved": False}
+                        "resource_name": "Mervin - Tennis Court 1",
+                        "time_slot_details": [
+                            {"status": 1},
+                            {"status": 0}
                         ]
                     }
                 ]
             }
-        ]
+        }
     }
     json_data = json.dumps(sample_json).encode("utf-8")
-    result = sync.parse_reservation_data(json_data)
+    result = sync.parse_reservation_data(json_data, "2025-04-20")
     assert "2025-04-20" in result
     assert "Mervin" in result["2025-04-20"]
     assert "Court 1" in result["2025-04-20"]["Mervin"]
@@ -100,7 +99,8 @@ def test_consolidate_booked_slots():
 def test_authenticate_google(monkeypatch):
     dummy_service = object()
     class DummyCredentials:
-        pass
+        def authorize(self, http):
+            return http
     def fake_from_service_account_file(path, scopes):
         return DummyCredentials()
     def fake_build(api, version, credentials):
