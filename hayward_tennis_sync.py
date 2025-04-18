@@ -24,7 +24,7 @@ session: requests.Session = requests.Session()
 session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}) # Example User Agent
 
 
-def get_sync_date_range(num_days: int = 2) -> List[str]:
+def get_sync_date_range(num_days: int = 4) -> List[str]:
     """
     Calculates and returns a list of date strings for the sync range.
     Start date is today + 2 days, end date is today + 81 days (80 days total).
@@ -195,7 +195,6 @@ def consolidate_booked_slots(parsed_data: dict) -> dict:
             "Bay": { ... }
         }
     """
-    from datetime import datetime, timedelta
 
     consolidated = {}
     for date_str, locations in parsed_data.items():
@@ -212,18 +211,18 @@ def consolidate_booked_slots(parsed_data: dict) -> dict:
                 current_start = None
                 current_end = None
                 for t in booked_times:
-                    slot_dt = datetime.strptime(f"{date_str} {t}", fmt)
+                    slot_dt = datetime.datetime.strptime(f"{date_str} {t}", fmt)
                     slot_dt = slot_dt.replace(tzinfo=tz)
                     if current_start is None:
                         current_start = slot_dt
-                        current_end = slot_dt + timedelta(minutes=30)
+                        current_end = slot_dt + datetime.timedelta(minutes=30)
                     else:
                         if slot_dt == current_end:
-                            current_end += timedelta(minutes=30)
+                            current_end += datetime.timedelta(minutes=30)
                         else:
                             events.append((current_start.isoformat(), current_end.isoformat()))
                             current_start = slot_dt
-                            current_end = slot_dt + timedelta(minutes=30)
+                            current_end = slot_dt + datetime.timedelta(minutes=30)
                 if current_start is not None:
                     events.append((current_start.isoformat(), current_end.isoformat()))
                 if location not in consolidated:
@@ -246,8 +245,6 @@ def authenticate_google(credentials_path: str) -> Any:
     Raises:
         Exception: If credential loading or service creation fails.
     """
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
     scopes = ['https://www.googleapis.com/auth/calendar.events']
     credentials = service_account.Credentials.from_service_account_file(credentials_path, scopes=scopes)
     service = build('calendar', 'v3', credentials=credentials)
@@ -271,10 +268,9 @@ def Workspace_calendar_events(service: Any, calendar_id: str, time_min_iso: str,
     events: List[dict] = []
     page_token: Optional[str] = None
     while True:
-        from datetime import datetime
         tz = ZoneInfo(TIMEZONE)
-        time_min_rfc3339 = datetime.fromisoformat(time_min_iso).replace(tzinfo=tz).isoformat()
-        time_max_rfc3339 = datetime.fromisoformat(time_max_iso).replace(tzinfo=tz).isoformat()
+        time_min_rfc3339 = datetime.datetime.fromisoformat(time_min_iso).replace(tzinfo=tz).isoformat()
+        time_max_rfc3339 = datetime.datetime.fromisoformat(time_max_iso).replace(tzinfo=tz).isoformat()
         print(time_min_rfc3339)
         print(time_max_rfc3339)
         response = service.events().list(
