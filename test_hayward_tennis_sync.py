@@ -28,18 +28,18 @@ class FakeResponse:
 def test_fetch_hayward_data(monkeypatch):
     fake_content = b'{"headers": {}, "body": {"date": "2025-04-20", "locations": []}}'
     
-    def fake_get(url):
-        assert "https://api.hayward.example.com/schedule?date=" in url
+    def fake_post(url, **kwargs):
+        assert "quickreservation/availability" in url, f"URL is {url}"
         return FakeResponse(fake_content)
     
     def fake_sleep(seconds):
         pass
     
     monkeypatch.setattr(time, "sleep", fake_sleep)
-    monkeypatch.setattr(sync.requests, "get", fake_get)
+    monkeypatch.setattr(sync.session, "post", fake_post)
     
     result = sync.Workspace_hayward_data("2025-04-20", 1.5, None)
-    assert result == fake_content
+    assert json.loads(result) == json.loads(fake_content)
 
 # Test parse_reservation_data with valid JSON
 def test_parse_reservation_data_valid():
