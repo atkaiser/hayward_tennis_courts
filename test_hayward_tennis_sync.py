@@ -26,7 +26,7 @@ class FakeResponse:
             raise Exception("Network error")
 
 def test_fetch_hayward_data(monkeypatch):
-    fake_content = b'{"date": "2025-04-20", "locations": []}'
+    fake_content = b'{"headers": {}, "body": {"date": "2025-04-20", "locations": []}}'
     
     def fake_get(url):
         assert "https://api.hayward.example.com/schedule?date=" in url
@@ -108,9 +108,8 @@ def test_authenticate_google(monkeypatch):
         assert version == "v3"
         return dummy_service
     import google.oauth2.service_account as service_account
-    import googleapiclient.discovery as discovery
     monkeypatch.setattr(service_account.Credentials, "from_service_account_file", fake_from_service_account_file)
-    monkeypatch.setattr(discovery, "build", fake_build)
+    monkeypatch.setattr(sync, "build", fake_build)
     result = sync.authenticate_google("dummy_path.json")
     assert result is dummy_service
 
