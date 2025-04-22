@@ -220,11 +220,11 @@ def consolidate_booked_slots(parsed_data: dict) -> dict:
                         if slot_dt == current_end:
                             current_end += datetime.timedelta(minutes=30)
                         else:
-                            events.append((current_start.isoformat(), current_end.isoformat()))
+                            events.append(((current_start + datetime.timedelta(minutes=30)).isoformat(), (current_end - datetime.timedelta(minutes=30)).isoformat()))
                             current_start = slot_dt
                             current_end = slot_dt + datetime.timedelta(minutes=30)
                 if current_start is not None:
-                    events.append((current_start.isoformat(), current_end.isoformat()))
+                    events.append(((current_start + datetime.timedelta(minutes=30)).isoformat(), (current_end - datetime.timedelta(minutes=30)).isoformat()))
                 if location not in consolidated:
                     consolidated[location] = {}
                 if court not in consolidated[location]:
