@@ -16,7 +16,7 @@ def test_get_sync_date_range():
     assert dates[0] == expected_first
     assert len(dates) == num_days
 
-# Test for Workspace_hayward_data with monkeypatch for requests.get and time.sleep
+# Test for fetch_hayward_data with monkeypatch for requests.get and time.sleep
 class FakeResponse:
     def __init__(self, content, status_code=200):
         self.content = content
@@ -38,7 +38,7 @@ def test_fetch_hayward_data(monkeypatch):
     monkeypatch.setattr(time, "sleep", fake_sleep)
     monkeypatch.setattr(sync.session, "post", fake_post)
     
-    result = sync.Workspace_hayward_data("2025-04-20", 1.5, None)
+    result = sync.fetch_hayward_data("2025-04-20", 1.5, None)
     assert json.loads(result) == json.loads(fake_content)
 
 # Test parse_reservation_data with valid JSON
@@ -113,7 +113,7 @@ def test_authenticate_google(monkeypatch):
     result = sync.authenticate_google("dummy_path.json")
     assert result is dummy_service
 
-# Test Workspace_calendar_events by mocking service.events().list().execute()
+# Test fetch_calendar_events by mocking service.events().list().execute()
 def test_fetch_calendar_events():
     fake_events = [
         {"id": "1", "summary": "Court 1", "start": {"dateTime": "2025-04-20T09:00:00Z"}, "end": {"dateTime": "2025-04-20T10:00:00Z"}},
@@ -126,7 +126,7 @@ def test_fetch_calendar_events():
     fake_service = MagicMock()
     fake_service.events = MagicMock(return_value=fake_events_method)
     
-    events = sync.Workspace_calendar_events(fake_service, "dummy_calendar", "2025-04-20T00:00:00", "2025-04-21T00:00:00")
+    events = sync.fetch_calendar_events(fake_service, "dummy_calendar", "2025-04-20T00:00:00", "2025-04-21T00:00:00")
     # Only events with summary starting with "Court " should be returned
     assert len(events) == 1
     assert events[0]["summary"] == "Court 1"

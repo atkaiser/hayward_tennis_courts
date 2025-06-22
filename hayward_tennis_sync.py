@@ -73,7 +73,7 @@ def get_csrf_token() -> Optional[str]:
         logging.warning("Could not find CSRF token. Proceeding without it, might fail.")
     return csrf_token
 
-def Workspace_hayward_data(date_str: str, throttle_seconds: float, csrf_token: Optional[str]) -> bytes:
+def fetch_hayward_data(date_str: str, throttle_seconds: float, csrf_token: Optional[str]) -> bytes:
     """
     Fetches data from the Hayward API for a given date with throttling.
     
@@ -250,7 +250,7 @@ def authenticate_google(credentials_path: str) -> Any:
     service = build('calendar', 'v3', credentials=credentials)
     return service
 
-def Workspace_calendar_events(service: Any, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
+def fetch_calendar_events(service: Any, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
     """
     Fetches existing calendar events from a given Google Calendar within the provided time range.
     
@@ -422,7 +422,7 @@ def main() -> None:
     # Fetch and parse data for each date
     for date_str in sync_dates:
         logging.info(f"Fetching data for {date_str}...")
-        raw_data = Workspace_hayward_data(date_str, args.throttle, csrf_token)
+        raw_data = fetch_hayward_data(date_str, args.throttle, csrf_token)
         try:
             daily_data = parse_reservation_data(raw_data, date_str)
         except ValueError as ve:
@@ -449,7 +449,7 @@ def main() -> None:
             continue
         
         try:
-            existing_events = Workspace_calendar_events(service, calendar_id, time_min, time_max)
+            existing_events = fetch_calendar_events(service, calendar_id, time_min, time_max)
         except Exception as e:
             logging.warning(f"Failed to fetch events for {location} (calendar {calendar_id}): {e}")
             continue
