@@ -42,7 +42,7 @@ def authenticate_google(credentials_path: str) -> Any:
         sys.exit(1)
 
 
-def Workspace_calendar_events(service: Any, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
+def fetch_calendar_events(service: Any, calendar_id: str, time_min_iso: str, time_max_iso: str) -> List[dict]:
     """
     Fetches existing calendar events from a given Google Calendar within the provided time range.
 
@@ -181,7 +181,7 @@ def main() -> None:
         logging.info(f"--- Processing calendar for location: {location} ({calendar_id}) ---")
 
         # Get existing events within the date range that match the script's pattern
-        events_to_delete = Workspace_calendar_events(service, calendar_id, time_min_iso, time_max_iso)
+        events_to_delete = fetch_calendar_events(service, calendar_id, time_min_iso, time_max_iso)
 
         if not events_to_delete:
             logging.info(f"No matching events found to delete for {location}.")
